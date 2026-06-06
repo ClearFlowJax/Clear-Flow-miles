@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ClearFlow Miles">
+<meta name="theme-color" content="#eef7fc">
+<title>ClearFlow Miles</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Leaflet (OpenStreetMap) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  :root {
+    --sky: #5ec8f0;
+    --sky-dark: #1f96c8;
+    --sky-mid: #3ab0e0;
+    --sky-light: #d0edf9;
+    --sky-xlight: #eaf6fd;
+    --lime: #8fd63b;
+    --lime-dark: #5a9e18;
+    --lime-mid: #72bc28;
+    --lime-light: #daf0a8;
+    --navy: #163352;
+    --white: #ffffff;
+    --offwhite: #f4f9fd;
+    --muted: #6888a8;
+    --border: #c5dff0;
+    --border-strong: #88c0de;
+    --text: #163352;
+    --text-light: #4470a0;
+    --card-bg: #ffffff;
+    --page-bg: #e8f4fb;
+    --red: #d94f4f;
+    --radius: 16px;
+    --shadow: 0 2px 10px rgba(20,80,140,0.09);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--page-bg); font-family: 'Nunito', sans-serif; color: var(--text); overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 70% 50% at 90% 5%, rgba(94,200,240,0.22) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 5% 85%, rgba(143,214,59,0.14) 0%, transparent 70%);
+  }
+  #app { position: relative; z-index: 1; min-height: 100vh; max-width: 430px; margin: 0 auto; padding: 0 0 96px; }
+
+  .header {
+    padding: 44px 18px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1.5px solid var(--border);
+    background: linear-gradient(180deg, rgba(94,200,240,0.13) 0%, transparent 100%);
+  }
+  .logo-group { display: flex; align-items: center; gap: 10px; }
+  .logo-img { height: 40px; object-fit: contain; }
+  .logo-badge { background: linear-gradient(135deg, var(--sky-dark) 0%, var(--lime-mid) 100%); color: white; font-size: 13px; font-weight: 900; padding: 4px 10px; border-radius: 8px; letter-spacing: 0.5px; }
+  .header-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; line-height: 1.8; font-weight: 500; }
+
+  .tabs { display: flex; border-bottom: 1.5px solid var(--border); background: var(--white); position: sticky; top: 0; z-index: 50; }
+  .tab { flex: 1; padding: 13px 6px; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; transition: all 0.15s; position: relative; }
+  .tab.active { color: var(--sky-dark); border-bottom-color: var(--sky-dark); }
+  .tab .badge { position: absolute; top: 7px; right: calc(50% - 22px); background: var(--lime); color: var(--navy); font-size: 9px; font-weight: 800; border-radius: 8px; padding: 1px 5px; }
+
+  .section { display: none; padding: 14px; animation: fadeUp 0.2s ease; }
+  .section.active { display: block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .card { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .card-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--sky-dark); margin-bottom: 10px; font-family: 'DM Mono', monospace; font-weight: 500; }
+
+  .field { margin-bottom: 11px; }
+  .field label { display: block; font-size: 10px; color: var(--text-light); margin-bottom: 5px; letter-spacing: 0.5px; font-weight: 800; text-transform: uppercase; }
+  .field input, .field select { width: 100%; background: var(--offwhite); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 13px; color: var(--text); font-size: 15px; font-family: 'Nunito', sans-serif; outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; }
+  .field input:focus, .field select:focus { border-color: var(--sky-dark); background: var(--white); }
+  .field input[type="number"] { font-family: 'DM Mono', monospace; font-size: 18px; }
+  .field input::placeholder { color: #aac8e0; font-size: 13px; font-weight: 400; }
+  .field select option { background: white; color: var(--text); }
+  .job-mask-wrap { display: flex; align-items: center; background: var(--offwhite); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color 0.15s; }
+  .job-mask-wrap:focus-within { border-color: var(--sky-dark); background: var(--white); }
+  .job-prefix { padding: 12px 0 12px 13px; font-family: 'DM Mono', monospace; font-size: 15px; color: var(--muted); white-space: nowrap; user-select: none; }
+  .job-mask-wrap input { background: transparent; border: none; outline: none; font-family: 'DM Mono', monospace; font-size: 15px; color: var(--text); padding: 12px 13px 12px 4px; width: 100%; }
+  .job-mask-wrap input::placeholder { color: #aac8e0; }
+
+  .odo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .odo-block { background: var(--sky-xlight); border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 10px; text-align: center; }
+  .odo-block.end { border-color: var(--sky-dark); background: #ddf1fb; }
+  .odo-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; font-family: 'DM Mono', monospace; font-weight: 500; }
+  .odo-input { width: 100%; background: transparent; border: none; color: var(--navy); font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; outline: none; text-align: center; }
+  .odo-unit { font-size: 10px; color: var(--sky-dark); margin-top: 4px; font-family: 'DM Mono', monospace; font-weight: 500; }
+
+  .miles-display { background: linear-gradient(135deg, #cdeefa 0%, #dbf5b8 100%); border: 1.5px solid var(--border-strong); border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 10px; }
+  .miles-number { font-family: 'DM Mono', monospace; font-size: 46px; font-weight: 500; color: var(--sky-dark); line-height: 1; }
+  .miles-label { font-size: 10px; letter-spacing: 3px; color: var(--text-light); margin-top: 4px; text-transform: uppercase; font-weight: 800; }
+  .miles-deduction { font-size: 13px; color: var(--lime-dark); margin-top: 5px; font-family: 'DM Mono', monospace; font-weight: 600; }
+  .miles-source { font-size: 10px; letter-spacing: 1px; color: var(--text-light); margin-top: 4px; text-transform: uppercase; font-weight: 800; }
+
+  .irs-banner { background: linear-gradient(135deg, rgba(143,214,59,0.14) 0%, rgba(94,200,240,0.10) 100%); border: 1.5px solid #c5e88a; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .irs-banner span { font-size: 12px; color: var(--lime-dark); font-weight: 700; }
+  .irs-rate-input { background: transparent; border: none; border-bottom: 2px solid var(--lime-dark); color: var(--lime-dark); font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 600; width: 72px; min-width: 72px; flex-shrink: 0; text-align: center; outline: none; padding: 1px; }
+  .irs-rate-input::-webkit-outer-spin-button, .irs-rate-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .btn { width: 100%; padding: 15px; border-radius: 12px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; border: none; cursor: pointer; transition: all 0.13s; font-family: 'Nunito', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-primary { background: linear-gradient(135deg, var(--sky-mid) 0%, var(--sky-dark) 100%); color: white; box-shadow: 0 4px 14px rgba(30,150,200,0.28); }
+  .btn-primary:active { transform: scale(0.97); box-shadow: none; }
+  .btn-lime { background: linear-gradient(135deg, var(--lime) 0%, var(--lime-dark) 100%); color: white; box-shadow: 0 4px 14px rgba(90,158,24,0.24); }
+  .btn-lime:active { transform: scale(0.97); box-shadow: none; }
+  .btn-email { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: white; box-shadow: 0 4px 14px rgba(13,71,161,0.28); }
+  .btn-email:active { transform: scale(0.97); box-shadow: none; }
+  .btn-ghost { background: var(--offwhite); border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-ghost:active { background: var(--sky-xlight); }
+  .btn-danger { background: transparent; border: 1.5px solid #f0b0b0; color: var(--red); }
+  .btn-danger:active { background: #fff0f0; }
+  .btn:disabled { opacity: 0.5; pointer-events: none; }
+
+  /* GPS card */
+  .gps-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-light); margin-bottom: 10px; min-height: 18px; }
+  .gps-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .gps-dot.live { background: var(--lime-dark); box-shadow: 0 0 0 0 rgba(90,158,24,0.5); animation: pulse 1.6s infinite; }
+  .gps-dot.tracking { background: var(--sky-dark); box-shadow: 0 0 0 0 rgba(31,150,200,0.5); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(90,158,24,0.45);} 70% { box-shadow: 0 0 0 9px rgba(90,158,24,0);} 100% { box-shadow: 0 0 0 0 rgba(90,158,24,0);} }
+  #map { width: 100%; height: 230px; border-radius: 12px; border: 1.5px solid var(--border); margin-bottom: 10px; background: var(--sky-xlight); z-index: 1; }
+  .leaflet-container { font-family: 'Nunito', sans-serif; }
+  .gps-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+  .btn-stop { background: linear-gradient(135deg, #e06666 0%, #c0392b 100%); color: white; box-shadow: 0 4px 14px rgba(192,57,43,0.26); }
+  .btn-stop:active { transform: scale(0.97); box-shadow: none; }
+  .gps-hint { font-size: 11px; color: var(--text-light); line-height: 1.5; font-weight: 600; margin-top: 4px; }
+  .gps-hint b { color: var(--navy); }
+
+  .log-item { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 14px; padding: 13px 13px 13px 17px; margin-bottom: 9px; position: relative; box-shadow: var(--shadow); }
+  .log-item::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px; background: linear-gradient(180deg, var(--sky) 0%, var(--lime) 100%); border-radius: 4px; }
+  .log-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+  .log-job { font-size: 11px; font-weight: 700; color: var(--sky-dark); font-family: 'DM Mono', monospace; }
+  .log-miles { font-size: 21px; font-weight: 800; color: var(--navy); font-family: 'DM Mono', monospace; }
+  .log-miles span { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .log-client { font-size: 14px; color: var(--text); font-weight: 700; margin-bottom: 2px; }
+  .log-meta { font-size: 11px; color: var(--text-light); line-height: 1.5; }
+  .log-date { font-size: 11px; color: var(--sky-dark); font-family: 'DM Mono', monospace; margin-top: 5px; font-weight: 600; }
+  .log-deduction { font-size: 11px; color: var(--lime-dark); font-family: 'DM Mono', monospace; font-weight: 700; margin-top: 2px; }
+  .log-tag { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; padding: 1px 6px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
+  .log-tag.gps { background: var(--lime-light); color: var(--lime-dark); }
+  .log-tag.odo { background: var(--sky-xlight); color: var(--sky-dark); }
+  .log-delete { position: absolute; top: 10px; right: 10px; background: var(--offwhite); border: 1px solid var(--border); color: var(--muted); font-size: 15px; cursor: pointer; padding: 3px 8px; border-radius: 7px; line-height: 1; }
+  .log-delete:active { color: var(--red); border-color: #f0b0b0; background: #fff0f0; }
+
+  .empty { text-align: center; padding: 48px 20px; }
+  .empty-icon { font-size: 50px; margin-bottom: 14px; opacity: 0.3; }
+  .empty-text { font-size: 14px; line-height: 1.7; color: var(--text-light); font-weight: 600; }
+
+  .summary-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .summary-block { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 11px 6px; text-align: center; box-shadow: var(--shadow); }
+  .summary-val { font-family: 'DM Mono', monospace; font-size: 19px; font-weight: 500; color: var(--sky-dark); }
+  .summary-key { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-top: 2px; font-weight: 800; }
+
+  .export-info { background: var(--sky-xlight); border: 1.5px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 12px; }
+  .export-info p { font-size: 13px; color: var(--text-light); line-height: 1.7; font-weight: 600; }
+  .export-info strong { color: var(--navy); }
+  .step-list { margin-top: 10px; list-style: none; padding: 0; }
+  .step-list li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 7px; font-size: 12px; color: var(--text-light); line-height: 1.5; font-weight: 600; }
+  .step-num { background: var(--sky-dark); color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+
+  .alert { border-radius: 10px; padding: 11px 13px; font-size: 13px; margin-bottom: 10px; display: none; font-weight: 700; }
+  .alert.success { background: #edfbf2; border: 1.5px solid #a0e8c0; color: #27844a; }
+  .alert.error { background: #fff0f0; border: 1.5px solid #f0b0b0; color: var(--red); }
+  .alert.show { display: block; }
+
+  .export-note { background: var(--lime-light); border: 1.5px solid #bbe880; border-radius: 10px; padding: 11px 13px; font-size: 12px; color: var(--lime-dark); margin-bottom: 12px; font-weight: 700; line-height: 1.6; }
+  .spacer { height: 8px; }
+
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--white); border-top: 1.5px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -3px 16px rgba(20,80,140,0.09); padding-bottom: env(safe-area-inset-bottom); }
+  .nav-item { flex: 1; padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: var(--muted); font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 800; transition: color 0.15s; }
+  .nav-item.active { color: var(--sky-dark); }
+  .nav-icon { font-size: 19px; line-height: 1; }
+
+  .section-title { font-size: 19px; font-weight: 900; color: var(--navy); margin-bottom: 2px; }
+  .section-subtitle { font-size: 12px; color: var(--text-light); margin-bottom: 12px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo-group">
+      <img src="ProofClearFlow_NO_BKGD_v5.png" class="logo-img" alt="ClearFlow" onerror="this.style.display='none'">
+      <span class="logo-badge">MILES</span>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('log')" id="tab-log">Log Trip</div>
+    <div class="tab" onclick="switchTab('history')" id="tab-history">History <span class="badge" id="histBadge" style="display:none"></span></div>
+    <div class="tab" onclick="switchTab('export')" id="tab-export">Export</div>
+  </div>
+
+  <!-- LOG TRIP -->
+  <div class="section active" id="sec-log">
+    <div class="irs-banner">
+      <span>IRS Rate: $</span>
+      <input class="irs-rate-input" type="number" id="irsRate" value="0.70" step="0.01" min="0">
+      <span>/mile - Update each January</span>
+    </div>
+
+    <!-- GPS TRACK CARD -->
+    <div class="card">
+      <div class="card-label">GPS Trip Tracker</div>
+      <div class="gps-status"><span class="gps-dot" id="gpsDot"></span><span id="gpsStatus">Tap Start at your starting point</span></div>
+      <div id="map"></div>
+      <div class="gps-btn-row">
+        <button class="btn btn-lime" id="gpsStartBtn" onclick="gpsStart()">&#x25B6; Start</button>
+        <button class="btn btn-stop" id="gpsStopBtn" onclick="gpsStop()" disabled>&#x25A0; Stop</button>
+      </div>
+      <button class="btn btn-ghost" id="gpsLocateBtn" onclick="locateMe()" style="margin-bottom:2px;">&#x1F4CD; Show My Location</button>
+      <div class="gps-hint">GPS measures the <b>road distance</b> from Start to Stop and fills in your addresses &amp; miles automatically. Odometer fields below stay optional &mdash; fill them only if you want to override.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Trip Details</div>
+      <div class="field"><label>Date</label><input type="date" id="tripDate"></div>
+      <div class="field">
+        <label>Job #</label>
+        <div class="job-mask-wrap">
+          <span class="job-prefix" id="jobPrefix">CF-2026-</span>
+          <input type="text" id="jobNum" placeholder="00001" maxlength="5" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+      <div class="field"><label>Client / Destination</label><input type="text" id="clientName" placeholder="Client name or address"></div>
+      <div class="field"><label>Purpose / Service</label><input type="text" id="purpose" placeholder="e.g. Standard Vent Cleaning"></div>
+    </div>
+
+    <div class="miles-display">
+      <div class="miles-number" id="milesNum">--</div>
+      <div class="miles-label">Business Miles</div>
+      <div class="miles-deduction" id="milesDeduct"></div>
+      <div class="miles-source" id="milesSource"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Odometer (optional override)</div>
+      <div class="odo-row">
+        <div class="odo-block">
+          <div class="odo-label">Start</div>
+          <input class="odo-input" type="number" id="odoStart" placeholder="00000" inputmode="numeric" oninput="calcMiles()">
+          <div class="odo-unit">miles</div>
+        </div>
+        <div class="odo-block end">
+          <div class="odo-label">End</div>
+          <input class="odo-input" type="number" id="odoEnd" placeholder="00000" inputmode="numeric" oninput="calcMiles()">
+          <div class="odo-unit">miles</div>
+        </div>
+      </div>
+      <div class="field"><label>Personal Miles (subtract)</label><input type="number" id="personalMiles" placeholder="0" value="0" inputmode="numeric" oninput="calcMiles()"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Addresses</div>
+      <div class="field"><label>From</label><input type="text" id="fromAddr" value="4158 Tideview Dr, Jacksonville, FL 32250" placeholder="Starting address"></div>
+      <div class="field"><label>To</label><input type="text" id="toAddr" placeholder="Client address"></div>
+      <div class="field"><label>Notes (optional)</label><input type="text" id="notes" placeholder="Round trip, etc."></div>
+    </div>
+    <div class="alert" id="logAlert"></div>
+    <button class="btn btn-lime" onclick="saveTrip()">+ Save Trip to Log</button>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost" onclick="clearForm()">Clear Form</button>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="section" id="sec-history">
+    <div class="section-title">Trip History</div>
+    <div class="section-subtitle" id="histSubtitle">All logged trips</div>
+    <div class="summary-strip" id="summaryStrip" style="display:none">
+      <div class="summary-block"><div class="summary-val" id="sumTrips">0</div><div class="summary-key">Trips</div></div>
+      <div class="summary-block"><div class="summary-val" id="sumMiles">0</div><div class="summary-key">Miles</div></div>
+      <div class="summary-block"><div class="summary-val" id="sumDeduct">$0</div><div class="summary-key">Deduction</div></div>
+    </div>
+    <div id="tripList"></div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="section" id="sec-export">
+    <div class="section-title">Export to Excel</div>
+    <div class="section-subtitle">Download &amp; email your mileage log</div>
+    <div class="export-info">
+      <p>Columns match the <strong>MILEAGE TRACKER</strong> sheet in <strong>ClearFlow_Jax_v6.xlsm</strong> exactly.</p>
+      <ul class="step-list">
+        <li><span class="step-num">1</span><span>Tap <strong>Download CSV + Open Mail App</strong> below</span></li>
+        <li><span class="step-num">2</span><span>On your computer, open Excel and your workbook</span></li>
+        <li><span class="step-num">3</span><span>Click the <strong>Data</strong> tab in the ribbon</span></li>
+        <li><span class="step-num">4</span><span>Click <strong>From Text/CSV</strong> and select the downloaded file</span></li>
+        <li><span class="step-num">5</span><span>Click <strong>Load</strong> — Excel places each value in the correct column automatically</span></li>
+        <li><span class="step-num">6</span><span>Copy the loaded rows and paste into your <strong>MILEAGE TRACKER</strong> sheet</span></li>
+      </ul>
+    </div>
+    <div style="background:#fff8e6;border:1.5px solid #f5c842;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#7a5c00;font-weight:700;line-height:1.6;">
+      TIP: The email button sends a summary notification to clearflowjax@outlook.com and downloads your CSV at the same time.
+    </div>
+    <div class="card">
+      <div class="card-label">Filter</div>
+      <div class="field" style="margin:0"><label>Export Month</label>
+        <select id="exportMonth"><option value="all">All trips</option></select>
+      </div>
+    </div>
+    <div class="summary-strip">
+      <div class="summary-block"><div class="summary-val" id="expTrips">0</div><div class="summary-key">Trips</div></div>
+      <div class="summary-block"><div class="summary-val" id="expMiles">0</div><div class="summary-key">Miles</div></div>
+      <div class="summary-block"><div class="summary-val" id="expDeduct">$0</div><div class="summary-key">Deduction</div></div>
+    </div>
+    <div class="export-note">Columns: Job #, Date, Client, Purpose, Start Odo, End Odo, Miles Driven, Personal Miles, Business Miles, IRS Deduction ($), From, To, Notes</div>
+    <button class="btn btn-email" onclick="sendEmail()" id="emailBtn">Download CSV + Open Mail App</button>
+    <div class="alert" id="emailAlert" style="margin-top:10px"></div>
+    <div class="spacer"></div>
+    <button class="btn btn-danger" onclick="clearAll()">Clear All Trips</button>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-log" onclick="switchTab('log')"><span class="nav-icon">&#x1F697;</span><span>Log Trip</span></div>
+  <div class="nav-item" id="nav-history" onclick="switchTab('history')"><span class="nav-icon">&#x1F4CB;</span><span>History</span></div>
+  <div class="nav-item" id="nav-export" onclick="switchTab('export')"><span class="nav-icon">&#x1F4E4;</span><span>Export</span></div>
+</div>
+
+<script>
+var trips = JSON.parse(localStorage.getItem('cfj_trips') || '[]');
+
+/* ---------- GPS / MAP STATE ---------- */
+var map, meMarker, startMarker, endMarker, routeLine;
+var gps = { startCoords: null, endCoords: null, gpsMiles: 0, source: '', tracking: false };
+
+/* ---------- IN-PROGRESS TRIP PERSISTENCE ----------
+   Saved trips already persist. This keeps the *unsaved* trip you're in the
+   middle of - the GPS start point, captured miles and everything you've typed -
+   so it survives switching to the camera, mail, or the browser unloading the
+   page in the background. Without this, returning to the app wipes the start
+   point and the form. */
+var DRAFT_FIELDS = ['tripDate','jobNum','clientName','purpose','odoStart','odoEnd','personalMiles','fromAddr','toAddr','notes'];
+
+function saveDraft() {
+  try {
+    var draft = { gps: gps, fields: {} };
+    DRAFT_FIELDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { draft.fields[id] = el.value; }
+    });
+    if (routeLine) {
+      draft.routeCoords = routeLine.getLatLngs().map(function(p) { return [p.lat, p.lng]; });
+    }
+    localStorage.setItem('cfj_draft', JSON.stringify(draft));
+  } catch (e) {}
+}
+
+function clearDraft() {
+  try { localStorage.removeItem('cfj_draft'); } catch (e) {}
+}
+
+function restoreDraft() {
+  var raw = localStorage.getItem('cfj_draft');
+  if (!raw) { return; }
+  var draft;
+  try { draft = JSON.parse(raw); } catch (e) { return; }
+  if (!draft) { return; }
+
+  if (draft.fields) {
+    DRAFT_FIELDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && draft.fields[id] !== undefined && draft.fields[id] !== '') {
+        el.value = draft.fields[id];
+      }
+    });
+    updateJobPrefix();
+  }
+
+  if (draft.gps && draft.gps.startCoords) {
+    gps = draft.gps;
+    var sll = [gps.startCoords.lat, gps.startCoords.lon];
+    if (startMarker) { map.removeLayer(startMarker); }
+    startMarker = L.circleMarker(sll, { radius: 9, color: '#5a9e18', fillColor: '#8fd63b', fillOpacity: 1, weight: 3 }).addTo(map).bindPopup('Trip start');
+    map.setView(sll, 14);
+
+    if (gps.endCoords) {
+      var ell = [gps.endCoords.lat, gps.endCoords.lon];
+      if (endMarker) { map.removeLayer(endMarker); }
+      endMarker = L.circleMarker(ell, { radius: 9, color: '#c0392b', fillColor: '#e06666', fillOpacity: 1, weight: 3 }).addTo(map).bindPopup('Trip end');
+    }
+
+    if (draft.routeCoords && draft.routeCoords.length) {
+      if (routeLine) { map.removeLayer(routeLine); }
+      routeLine = L.polyline(draft.routeCoords, { color: '#1f96c8', weight: 5, opacity: 0.85 }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+    } else if (gps.endCoords) {
+      routeLine = L.polyline([sll, [gps.endCoords.lat, gps.endCoords.lon]], { color: '#c0392b', weight: 4, dashArray: '6,6', opacity: 0.8 }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+    }
+
+    if (gps.gpsMiles > 0) {
+      setGpsStatus('Trip restored: ' + gps.gpsMiles.toFixed(1) + ' miles - review, then Save', 'live');
+      document.getElementById('gpsStartBtn').disabled = false;
+      document.getElementById('gpsStopBtn').disabled = true;
+    } else {
+      setGpsStatus('Start point restored - drive to your destination, then tap Stop', 'tracking');
+      document.getElementById('gpsStartBtn').disabled = true;
+      document.getElementById('gpsStopBtn').disabled = false;
+    }
+  }
+
+  calcMiles();
+}
+
+window.addEventListener('load', function() {
+  document.getElementById('tripDate').value = new Date().toISOString().split('T')[0];
+  updateJobPrefix();
+  document.getElementById('tripDate').addEventListener('change', updateJobPrefix);
+  document.getElementById('jobNum').addEventListener('input', enforceDigitsOnly);
+  updateHeaderDate();
+  var saved = localStorage.getItem('cfj_irs_rate');
+  if (saved) { document.getElementById('irsRate').value = saved; }
+  document.getElementById('irsRate').addEventListener('input', function(e) {
+    localStorage.setItem('cfj_irs_rate', e.target.value);
+    calcMiles();
+  });
+  // Auto-save the in-progress trip whenever any field changes
+  DRAFT_FIELDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('input', saveDraft); el.addEventListener('change', saveDraft); }
+  });
+  initMap();
+  restoreDraft();
+  renderHistory();
+  populateExportMonths();
+  updateExportSummary();
+});
+
+// Persist the moment the app goes to the background (switching to camera, mail, etc.)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') { saveDraft(); }
+});
+window.addEventListener('pagehide', saveDraft);
+
+/* ---------- MAP ---------- */
+function initMap() {
+  // Default view: Jacksonville, FL
+  map = L.map('map', { zoomControl: true, attributionControl: true }).setView([30.28, -81.5], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  // Fix sizing once the tab is actually visible
+  setTimeout(function() { map.invalidateSize(); }, 300);
+}
+
+function setGpsStatus(text, dotClass) {
+  document.getElementById('gpsStatus').textContent = text;
+  var dot = document.getElementById('gpsDot');
+  dot.className = 'gps-dot' + (dotClass ? ' ' + dotClass : '');
+}
+
+function ensureGeo(cb, errCb) {
+  if (!('geolocation' in navigator)) {
+    setGpsStatus('GPS not supported on this browser', '');
+    if (errCb) errCb();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { cb(pos.coords); },
+    function(err) {
+      var msg = 'Location error';
+      if (err.code === 1) { msg = 'Location blocked — allow location & use HTTPS'; }
+      else if (err.code === 2) { msg = 'Position unavailable — try again outdoors'; }
+      else if (err.code === 3) { msg = 'GPS timed out — try again'; }
+      setGpsStatus(msg, '');
+      if (errCb) errCb(err);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+function locateMe() {
+  setGpsStatus('Locating…', 'live');
+  ensureGeo(function(c) {
+    var ll = [c.latitude, c.longitude];
+    if (meMarker) { meMarker.setLatLng(ll); } else { meMarker = L.marker(ll).addTo(map); }
+    meMarker.bindPopup('You are here').openPopup();
+    map.setView(ll, 15);
+    setGpsStatus('Location found (±' + Math.round(c.accuracy) + ' m)', 'live');
+  });
+}
+
+function gpsStart() {
+  setGpsStatus('Getting start position…', 'live');
+  ensureGeo(function(c) {
+    gps.startCoords = { lat: c.latitude, lon: c.longitude };
+    gps.endCoords = null;
+    gps.gpsMiles = 0;
+    gps.tracking = true;
+    var ll = [c.latitude, c.longitude];
+    if (startMarker) { map.removeLayer(startMarker); }
+    if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    startMarker = L.circleMarker(ll, { radius: 9, color: '#5a9e18', fillColor: '#8fd63b', fillOpacity: 1, weight: 3 }).addTo(map).bindPopup('Trip start');
+    map.setView(ll, 15);
+    setGpsStatus('Trip started — drive to your destination, then tap Stop', 'tracking');
+    document.getElementById('gpsStartBtn').disabled = true;
+    document.getElementById('gpsStopBtn').disabled = false;
+    saveDraft();
+    // Reverse-geocode the start into the From field
+    reverseGeocode(c.latitude, c.longitude, function(addr) {
+      if (addr) { document.getElementById('fromAddr').value = addr; saveDraft(); }
+    });
+  });
+}
+
+function gpsStop() {
+  if (!gps.startCoords) { setGpsStatus('Tap Start first', ''); return; }
+  setGpsStatus('Getting end position…', 'tracking');
+  ensureGeo(function(c) {
+    gps.endCoords = { lat: c.latitude, lon: c.longitude };
+    gps.tracking = false;
+    var ll = [c.latitude, c.longitude];
+    if (endMarker) { map.removeLayer(endMarker); }
+    endMarker = L.circleMarker(ll, { radius: 9, color: '#c0392b', fillColor: '#e06666', fillOpacity: 1, weight: 3 }).addTo(map).bindPopup('Trip end');
+    document.getElementById('gpsStartBtn').disabled = false;
+    document.getElementById('gpsStopBtn').disabled = true;
+    saveDraft();
+    // Reverse-geocode end into To field
+    reverseGeocode(c.latitude, c.longitude, function(addr) {
+      if (addr) { document.getElementById('toAddr').value = addr; saveDraft(); }
+    });
+    setGpsStatus('Calculating road distance…', 'tracking');
+    routeDistance(gps.startCoords, gps.endCoords);
+  });
+}
+
+/* OSRM public routing — returns road distance following streets */
+function routeDistance(a, b) {
+  var url = 'https://router.project-osrm.org/route/v1/driving/' +
+    a.lon + ',' + a.lat + ';' + b.lon + ',' + b.lat +
+    '?overview=full&geometries=geojson';
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.routes && data.routes.length) {
+        var meters = data.routes[0].distance;
+        gps.gpsMiles = meters / 1609.344;
+        gps.source = 'GPS road distance';
+        // Draw the route on the map
+        var coords = data.routes[0].geometry.coordinates.map(function(p) { return [p[1], p[0]]; });
+        if (routeLine) { map.removeLayer(routeLine); }
+        routeLine = L.polyline(coords, { color: '#1f96c8', weight: 5, opacity: 0.85 }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+        finishGps();
+      } else {
+        fallbackStraightLine(a, b);
+      }
+    })
+    .catch(function() { fallbackStraightLine(a, b); });
+}
+
+/* Haversine straight-line fallback if routing service is unreachable */
+function fallbackStraightLine(a, b) {
+  var R = 3958.7613; // earth radius in miles
+  var dLat = (b.lat - a.lat) * Math.PI / 180;
+  var dLon = (b.lon - a.lon) * Math.PI / 180;
+  var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+          Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  var dist = 2 * R * Math.asin(Math.sqrt(s));
+  gps.gpsMiles = dist;
+  gps.source = 'GPS straight-line (routing offline) — verify miles';
+  if (startMarker && endMarker) {
+    if (routeLine) { map.removeLayer(routeLine); }
+    routeLine = L.polyline([startMarker.getLatLng(), endMarker.getLatLng()], { color: '#c0392b', weight: 4, dashArray: '6,6', opacity: 0.8 }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+  }
+  finishGps();
+}
+
+function finishGps() {
+  setGpsStatus('Trip captured: ' + gps.gpsMiles.toFixed(1) + ' miles', 'live');
+  saveDraft();
+  calcMiles();
+}
+
+/* Reverse geocode via Nominatim (OpenStreetMap) */
+function reverseGeocode(lat, lon, cb) {
+  var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lon + '&zoom=18&addressdetails=1';
+  fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { cb(d && d.display_name ? d.display_name : ''); })
+    .catch(function() { cb(''); });
+}
+
+/* ---------- TRIP DETAILS ---------- */
+function getYearFromDate() {
+  var d = document.getElementById('tripDate').value;
+  if (d) { return d.split('-')[0]; }
+  return new Date().getFullYear().toString();
+}
+
+function updateJobPrefix() {
+  document.getElementById('jobPrefix').textContent = 'CF-' + getYearFromDate() + '-';
+}
+
+function getJobNum() {
+  var digits = document.getElementById('jobNum').value.trim();
+  if (!digits) { return ''; }
+  while (digits.length < 5) { digits = '0' + digits; }
+  return 'CF-' + getYearFromDate() + '-' + digits;
+}
+
+function enforceDigitsOnly(e) {
+  var val = e.target.value.replace(/[^0-9]/g, '');
+  e.target.value = val;
+}
+
+function updateHeaderDate() {
+  var now = new Date();
+  document.getElementById('headerDate').innerHTML =
+    now.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) + '<br>' +
+    now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+}
+
+function switchTab(tab) {
+  ['log','history','export'].forEach(function(t) {
+    document.getElementById('sec-'+t).classList.toggle('active', t === tab);
+    document.getElementById('tab-'+t).classList.toggle('active', t === tab);
+    document.getElementById('nav-'+t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'log' && map) { setTimeout(function() { map.invalidateSize(); }, 200); }
+  if (tab === 'history') { renderHistory(); }
+  if (tab === 'export') { populateExportMonths(); updateExportSummary(); }
+}
+
+/* Decide the active mileage source: odometer overrides GPS if both odo fields filled */
+function calcMiles() {
+  var s = parseFloat(document.getElementById('odoStart').value);
+  var e = parseFloat(document.getElementById('odoEnd').value);
+  var p = parseFloat(document.getElementById('personalMiles').value) || 0;
+  var r = parseFloat(document.getElementById('irsRate').value) || 0.70;
+  var biz = 0, hasVal = false, srcText = '';
+
+  var odoValid = !isNaN(s) && !isNaN(e) && e > s;
+  if (odoValid) {
+    biz = Math.max(0, (e - s) - p);
+    hasVal = true;
+    srcText = 'Source: Odometer';
+  } else if (gps.gpsMiles > 0) {
+    biz = Math.max(0, gps.gpsMiles - p);
+    hasVal = true;
+    srcText = 'Source: ' + gps.source;
+  }
+
+  document.getElementById('milesNum').textContent = hasVal ? (Math.round(biz * 10) / 10) : '--';
+  document.getElementById('milesDeduct').textContent = hasVal ? ('IRS Deduction: $' + (biz * r).toFixed(2)) : '';
+  document.getElementById('milesSource').textContent = hasVal ? srcText : '';
+}
+
+function activeMiles() {
+  var s = parseFloat(document.getElementById('odoStart').value);
+  var e = parseFloat(document.getElementById('odoEnd').value);
+  var p = parseFloat(document.getElementById('personalMiles').value) || 0;
+  var odoValid = !isNaN(s) && !isNaN(e) && e > s;
+  if (odoValid) {
+    return { total: e - s, biz: Math.max(0, (e - s) - p), method: 'Odometer', odoStart: s, odoEnd: e };
+  }
+  if (gps.gpsMiles > 0) {
+    var g = Math.round(gps.gpsMiles * 10) / 10;
+    return { total: g, biz: Math.max(0, g - p), method: 'GPS', odoStart: '', odoEnd: '' };
+  }
+  return null;
+}
+
+function saveTrip() {
+  var date = document.getElementById('tripDate').value;
+  if (!date) { showAlert('logAlert','error','Please enter a date.'); return; }
+
+  var m = activeMiles();
+  if (!m) { showAlert('logAlert','error','Capture a GPS trip (Start/Stop) or enter odometer readings.'); return; }
+
+  var r = parseFloat(document.getElementById('irsRate').value) || 0.70;
+  var p = parseFloat(document.getElementById('personalMiles').value) || 0;
+
+  var trip = {
+    id: Date.now(),
+    jobNum: getJobNum(),
+    date: date,
+    client: document.getElementById('clientName').value.trim(),
+    purpose: document.getElementById('purpose').value.trim(),
+    odoStart: m.odoStart, odoEnd: m.odoEnd, totalMiles: m.total,
+    personalMiles: p, bizMiles: m.biz,
+    deduction: parseFloat((m.biz * r).toFixed(2)),
+    from: document.getElementById('fromAddr').value.trim(),
+    to: document.getElementById('toAddr').value.trim(),
+    notes: document.getElementById('notes').value.trim(),
+    irsRate: r,
+    method: m.method
+  };
+  trips.unshift(trip);
+  saveTrips();
+  showAlert('logAlert','success','Trip saved! ' + m.biz + ' business miles logged (' + m.method + ').');
+  updateBadge();
+  resetAfterSave();
+}
+
+function resetAfterSave() {
+  document.getElementById('jobNum').value = '';
+  ['odoStart','odoEnd','clientName','purpose','toAddr','notes'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('personalMiles').value = '0';
+  // reset GPS capture
+  gps = { startCoords: null, endCoords: null, gpsMiles: 0, source: '', tracking: false };
+  if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+  if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  document.getElementById('gpsStartBtn').disabled = false;
+  document.getElementById('gpsStopBtn').disabled = true;
+  setGpsStatus('Tap Start at your starting point', '');
+  clearDraft();
+  calcMiles();
+}
+
+function clearForm() {
+  document.getElementById('jobNum').value = '';
+  ['clientName','purpose','odoStart','odoEnd','toAddr','notes'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('personalMiles').value = '0';
+  document.getElementById('tripDate').value = new Date().toISOString().split('T')[0];
+  updateJobPrefix();
+  resetAfterSave();
+}
+
+function renderHistory() {
+  var list = document.getElementById('tripList');
+  var strip = document.getElementById('summaryStrip');
+  if (!trips.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F5FA;</div><div class="empty-text">No trips logged yet.<br>Head to Log Trip to start.</div></div>';
+    strip.style.display = 'none';
+    document.getElementById('histSubtitle').textContent = 'No trips yet';
+    return;
+  }
+  var tm = trips.reduce(function(s,t) { return s + t.bizMiles; }, 0);
+  var td = trips.reduce(function(s,t) { return s + parseFloat(t.deduction || 0); }, 0);
+  strip.style.display = 'grid';
+  document.getElementById('sumTrips').textContent = trips.length;
+  document.getElementById('sumMiles').textContent = Math.round(tm * 10) / 10;
+  document.getElementById('sumDeduct').textContent = '$' + parseFloat(td).toFixed(2);
+  document.getElementById('histSubtitle').textContent = trips.length + ' trip' + (trips.length !== 1 ? 's' : '') + ' - ' + (Math.round(tm*10)/10) + ' business miles';
+  var html = '';
+  trips.forEach(function(t) {
+    var route = [t.from, t.to].filter(Boolean).join(' to ');
+    var tag = t.method === 'GPS' ? '<span class="log-tag gps">GPS</span>' : (t.method === 'Odometer' ? '<span class="log-tag odo">ODO</span>' : '');
+    var odoStr = (t.odoStart !== '' && t.odoEnd !== '') ? (' | Odo: ' + t.odoStart + ' to ' + t.odoEnd) : '';
+    html += '<div class="log-item">';
+    html += '<button class="log-delete" onclick="deleteTrip(' + t.id + ')">x</button>';
+    html += '<div class="log-top"><span class="log-job">' + (t.jobNum || '--') + tag + '</span>';
+    html += '<span class="log-miles">' + t.bizMiles + ' <span>mi</span></span></div>';
+    html += '<div class="log-client">' + (t.client || 'No client') + '</div>';
+    html += '<div class="log-meta">' + (t.purpose || '') + '</div>';
+    html += '<div class="log-meta">' + route + '</div>';
+    html += '<div class="log-date">Date: ' + fmtDate(t.date) + odoStr + '</div>';
+    html += '<div class="log-deduction">Deduction: $' + parseFloat(t.deduction || 0).toFixed(2) + '</div>';
+    if (t.notes) { html += '<div class="log-meta" style="margin-top:4px">Note: ' + t.notes + '</div>'; }
+    html += '</div>';
+  });
+  list.innerHTML = html;
+  updateBadge();
+}
+
+function deleteTrip(id) {
+  if (!confirm('Delete this trip?')) { return; }
+  trips = trips.filter(function(t) { return t.id !== id; });
+  saveTrips(); renderHistory(); updateExportSummary();
+}
+
+function updateBadge() {
+  var b = document.getElementById('histBadge');
+  b.style.display = trips.length ? 'inline' : 'none';
+  b.textContent = trips.length;
+}
+
+function populateExportMonths() {
+  var sel = document.getElementById('exportMonth');
+  var seen = {};
+  var months = [];
+  trips.forEach(function(t) {
+    var m = t.date.substring(0,7);
+    if (!seen[m]) { seen[m] = true; months.push(m); }
+  });
+  months.sort().reverse();
+  sel.innerHTML = '<option value="all">All trips</option>';
+  months.forEach(function(m) {
+    var d = new Date(m + '-02');
+    sel.innerHTML += '<option value="' + m + '">' + d.toLocaleDateString('en-US', {month:'long', year:'numeric'}) + '</option>';
+  });
+  sel.onchange = updateExportSummary;
+}
+
+function getFiltered() {
+  var m = document.getElementById('exportMonth').value;
+  if (m === 'all') { return trips; }
+  return trips.filter(function(t) { return t.date.indexOf(m) === 0; });
+}
+
+function updateExportSummary() {
+  var f = getFiltered();
+  document.getElementById('expTrips').textContent = f.length;
+  document.getElementById('expMiles').textContent = Math.round(f.reduce(function(s,t) { return s + t.bizMiles; }, 0) * 10) / 10;
+  document.getElementById('expDeduct').textContent = '$' + f.reduce(function(s,t) { return s + parseFloat(t.deduction || 0); }, 0).toFixed(2);
+  document.getElementById('emailBtn').disabled = (f.length === 0);
+}
+
+function buildCSV(f) {
+  var headers = ['Job #','Date','Client / Destination','Purpose / Service','Starting Odometer','Ending Odometer','Miles Driven','Personal Miles','Business Miles','IRS Deduction ($)','From (Address)','To (Address)','Notes'];
+  function esc(v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; }
+  var rows = [headers.map(esc).join(',')];
+  f.forEach(function(t) {
+    rows.push([t.jobNum, t.date, t.client, t.purpose, t.odoStart, t.odoEnd, t.totalMiles, t.personalMiles, t.bizMiles, t.deduction, t.from, t.to, t.notes].map(esc).join(','));
+  });
+  return rows.join('\r\n');
+}
+
+function exportCSV() {
+  var f = getFiltered();
+  if (!f.length) { return; }
+  var csv = buildCSV(f);
+  var m = document.getElementById('exportMonth').value;
+  var filename = 'ClearFlow_Mileage_' + (m === 'all' ? 'All' : m) + '.csv';
+  var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  if (navigator.share && navigator.canShare) {
+    var file = new File([blob], filename, {type: 'text/csv'});
+    if (navigator.canShare({files: [file]})) {
+      navigator.share({ files: [file], title: filename }).catch(function(err) {
+        if (err.name !== 'AbortError') { fallbackDownload(blob, filename); }
+      });
+      return;
+    }
+  }
+  fallbackDownload(blob, filename);
+}
+
+function fallbackDownload(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
+function sendEmail() {
+  var f = getFiltered();
+  if (!f.length) { showAlert('emailAlert','error','No trips to send.'); return; }
+
+  var monthEl = document.getElementById('exportMonth');
+  var monthLabel = monthEl.options[monthEl.selectedIndex].text;
+  var totalMiles = Math.round(f.reduce(function(s,t) { return s + t.bizMiles; }, 0) * 10) / 10;
+  var totalDeduct = f.reduce(function(s,t) { return s + parseFloat(t.deduction || 0); }, 0).toFixed(2);
+  var m = document.getElementById('exportMonth').value;
+  var filename = 'ClearFlow_Mileage_' + (m === 'all' ? 'All' : m) + '.csv';
+  var csv = buildCSV(f);
+  var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  var file = new File([blob], filename, {type: 'text/csv'});
+
+  var nl = '%0A';
+  var subject = encodeURIComponent('ClearFlow Mileage Log - ' + monthLabel);
+  var mailBody = 'Hi,' + nl + nl +
+    'Please find the mileage log attached for ' + encodeURIComponent(monthLabel) + '.' + nl + nl +
+    'Summary:' + nl +
+    'Trips: ' + f.length + nl +
+    'Total Business Miles: ' + totalMiles + nl +
+    'Est. IRS Deduction: $' + totalDeduct + nl + nl +
+    'Thank you,' + nl +
+    'ClearFlow of Jax';
+  var mailtoLink = 'mailto:clearflowjax@outlook.com?subject=' + subject + '&body=' + mailBody;
+
+  if (navigator.share && navigator.canShare && navigator.canShare({files: [file]})) {
+    navigator.share({
+      files: [file],
+      title: 'ClearFlow Mileage Log - ' + monthLabel,
+      text: 'Mileage log for ' + monthLabel + '. Trips: ' + f.length + ', Miles: ' + totalMiles + ', Deduction: $' + totalDeduct
+    }).then(function() {
+      showAlert('emailAlert','success','Share sheet opened! Choose Gmail or Outlook to send the CSV.');
+    }).catch(function(err) {
+      if (err.name !== 'AbortError') {
+        window.location.href = mailtoLink;
+        showAlert('emailAlert','success','Mail app opening — compose your email to clearflowjax@outlook.com');
+      }
+    });
+  } else {
+    fallbackDownload(blob, filename);
+    setTimeout(function() {
+      window.location.href = mailtoLink;
+      showAlert('emailAlert','success','CSV saved + mail app opening — attach the file and send.');
+    }, 800);
+  }
+}
+
+function clearAll() {
+  if (!confirm('Delete all ' + trips.length + ' trips? This cannot be undone.')) { return; }
+  trips = []; saveTrips(); renderHistory(); updateBadge(); updateExportSummary();
+}
+
+function saveTrips() { localStorage.setItem('cfj_trips', JSON.stringify(trips)); }
+
+function fmtDate(d) {
+  var parts = d.split('-');
+  return parts[1] + '/' + parts[2] + '/' + parts[0];
+}
+
+function showAlert(id, type, msg) {
+  var el = document.getElementById(id);
+  el.className = 'alert ' + type + ' show';
+  el.textContent = msg;
+  setTimeout(function() { el.className = 'alert'; }, 4000);
+}
+
+setInterval(updateHeaderDate, 60000);
+</script>
+</body>
+</html>
